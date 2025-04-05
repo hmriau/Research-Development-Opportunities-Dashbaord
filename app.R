@@ -10,16 +10,16 @@ library(lubridate)
 library(bsicons)
 library(tidyr)
 
-ui <- page_navbar(
+ui <-   page_navbar(
   title = "Research Development Opportunities",
   theme = bslib::bs_theme(version = 5, bootswatch = "yeti"),
   
   nav_panel(
     "Dashboard",
-    page_fillable(
-      padding = "15px",
+    div(  # Main container div
+      style = "width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;",
       
-      # Row 1: Value boxes (compact)
+      # Value boxes row (stays fixed at top)
       layout_columns(
         col_widths = c(4, 4, 4),
         value_box(
@@ -27,85 +27,80 @@ ui <- page_navbar(
           value = textOutput("n_opp_ytd"),
           showcase = bs_icon("activity"),
           theme = "primary",
-          height = "110px"  # More compact
+          height = "120px",
+          full_screen = FALSE
         ),
         value_box(
           title = "Pursued",
           value = textOutput("n_pursued"),
           showcase = bs_icon("pencil"),
           theme = "secondary",
-          height = "110px"
+          height = "120px",
+          full_screen = FALSE
         ),
         value_box(
           title = "Successes",
           value = textOutput("n_success"),
           showcase = bs_icon("speedometer2"),
           theme = "success",
-          height = "110px"
+          height = "120px",
+          full_screen = FALSE
         ),
         gap = "10px",
-        class = "mb-3"  # Add margin below
+        class = "mb-4 sticky-top",  # Makes this row stick when scrolling
+        style = "background-color: white; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
       ),
       
-      # Row 2: Gauge and Monthly Plot (better proportions)
-      layout_columns(
-        col_widths = c(5, 7),  # Adjusted proportions
-        card(
-          height = "320px",  # Fixed height
-          card_header("Mean days to decision"),
-          plotlyOutput("gauge_plot", height = "240px")  # Fixed plot height
-        ),
-        card(
-          height = "320px",
-          card_header("Opportunities per Month (2025)"),
-          plotlyOutput("monthly_plot", height = "240px")
-        ),
-        gap = "15px",
-        class = "mb-3"
-      ),
-      
-      # Row 3: Breakdown Tabs (better proportions)
+      # Gauge plot
       card(
-        height = "380px",  # Slightly taller for bars
+        card_header("Mean days to decision"),
+        div(
+          style = "height: 400px;",  # Fixed height container
+          plotlyOutput("gauge_plot", height = "100%")
+        ),
+        class = "mb-4"
+      ),
+      
+      # Monthly plot
+      card(
+        card_header("Opportunities per Month (2025)"),
+        div(
+          style = "height: 500px;",  # Fixed height container
+          plotlyOutput("monthly_plot", height = "100%")
+        ),
+        class = "mb-4"
+      ),
+      
+      # Breakdown tabs
+      card(
         card_header("Opportunity Breakdown"),
         navset_card_tab(
-          height = "330px",
           nav_panel(
             "By Type",
-            plotlyOutput("type_plot", height = "280px")  # More vertical space for bars
+            div(
+              style = "height: 500px;",
+              plotlyOutput("type_plot", height = "100%")
+            )
           ),
           nav_panel(
             "By Funding Source",
-            plotlyOutput("source_plot", height = "280px")
+            div(
+              style = "height: 500px;",
+              plotlyOutput("source_plot", height = "100%")
+            )
           )
-        )
+        ),
+        class = "mb-4"
       ),
       
-      # Row 4: Data Table
+      # Data table
       card(
-        height = "420px",  # Fixed height with scroll
         card_header("Most Recent Opportunities"),
-        DTOutput("data_table")
-      ),
-      
-      # CSS tweaks for better visuals
-      tags$style("
-        .card {
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .card-header {
-          font-weight: 600;
-          padding: 10px 15px;
-          background-color: #f8f9fa;
-        }
-        .plotly.html-widget {
-          border-radius: 6px;
-        }
-        .dataTables_wrapper {
-          padding: 8px;
-        }
-      ")
+        div(
+          style = "height: 600px; overflow-y: auto;",  # Scrollable container
+          DTOutput("data_table")
+        )
+      )
     )
   ),
   # Tab 2: REDCap Data Editor (placeholder)
