@@ -1,4 +1,4 @@
-install.packages("auth0", repos = "https://cloud.r-project.org" )
+#install.packages("auth0", repos = "https://cloud.r-project.org" )
 library(auth0)
 library(shiny)
 library(bslib)
@@ -107,13 +107,36 @@ ui <-   page_navbar(
   nav_panel(
     "REDCap Data Editor",
     card(
-      card_header("REDCap Data Editor - Connect to Database"),
-      p("This tab will allow direct editing of REDCap records when implemented."),
-      DTOutput("redcap_preview"),
-      tags$div(
-        class = "alert alert-info",
-        tags$strong("Note:"),
-        "Full editing functionality coming soon."
+      card_header("REDCap Data Editor", class = "bg-primary text-white"),
+      layout_sidebar(
+        # Sidebar Panel (controls only)
+        sidebar = sidebar(
+          width = 350,
+          position = "left",
+          selectInput("record_id", "Select Record:", choices = NULL),
+          uiOutput("field_editor"),
+          actionButton("save", "Save Changes", class = "btn-primary mt-3")
+        ),
+        
+        # Main Panel (data display with export buttons)
+        card(
+          card_header(
+            "Record Data",
+            div(
+              class = "float-end",  # Aligns buttons to right
+              downloadButton("export_csv", "CSV", class = "btn-sm btn-success me-1"),
+              downloadButton("export_excel", "Excel", class = "btn-sm btn-info")
+            ),
+            class = "bg-light"
+          ),
+          card_body(
+            DTOutput("record_table"),
+            height = "600px",
+            max_height = "100%",
+            fillable = TRUE
+          ),
+          full_screen = TRUE
+        )
       )
     )
   ),
@@ -327,6 +350,16 @@ server <- function(input, output, session) {
         yaxis = list(title = "Count")
       )
   })
+  # Export handlers
+  output$export_csv <- downloadHandler(
+    filename = function() paste("opportunities-", Sys.Date(), ".csv", sep = ""),
+    content = function(file) write.csv(data_store$labeled, file, row.names = FALSE)
+  )
+  
+  output$export_excel <- downloadHandler(
+    filename = function() paste("opportunities-", Sys.Date(), ".xlsx", sep = ""),
+    content = function(file) writexl::write_xlsx(data_store$labeled, file)
+  )
   
   # Data table
   output$data_table <- renderDT({
