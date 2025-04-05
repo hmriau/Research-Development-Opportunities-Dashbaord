@@ -179,18 +179,18 @@ server <- function(input, output, session) {
   })
   # Reactive REDCap data connection
   redcap_data <- reactive({
-    redcap_api_url <- Sys.getenv("REDCAP_API_URL")
-    redcap_api_token <- Sys.getenv("REDCAP_API_TOKEN")
+    redcap_uri <- Sys.getenv("REDCAP_URL")
+    redcap_token <- Sys.getenv("REDCAP_TOKEN")
     
-    if (redcap_api_url == "" || redcap_api_token == "") {
+    if (redcap_uri == "" || redcap_token == "") {
       showNotification("REDCap API credentials not configured", type = "error")
       return(NULL)
     }
     
     result <- tryCatch({
       redcap_read_oneshot(
-        redcap_uri = redcap_api_url,
-        token = redcap_api_token,
+        redcap_uri = redcap_uri,
+        token = redcap_token,
         raw_or_label = "label"
       )
     }, error = function(e) {
