@@ -1,4 +1,3 @@
-#install.packages("auth0", repos = "https://cloud.r-project.org" )
 library(auth0)
 library(shiny)
 library(bslib)
@@ -7,473 +6,819 @@ library(dplyr)
 library(DT)
 library(plotly)
 library(lubridate)
-library(bsicons)
+library(echarts4r) 
+library(purrr)
 library(tidyr)
 
-ui <-   page_navbar(
-  title = "Research Development Opportunities",
-  theme = bslib::bs_theme(version = 5, bootswatch = "yeti"),
-  
+# UI ----------------------------------------------------------------------
+ui <- page_navbar(
+  id = "tabs",
+  title = div(
+    "Research Development Opportunities",
+    style = "font-family: 'Roboto Slab', serif; font-weight: 700;"
+  ),
+  theme = bslib::bs_theme(
+    version = 5,
+    "primary" = "#522E91",
+    "secondary" = "#F26649",
+    "success" = "#60C2AC",
+    "info" = "#73CDE1",
+    "warning" = "#FFDF5D",
+    "bg" = "#FFFFFF",
+    "fg" = "#000000",
+    base_font = bslib::font_google("Roboto"),
+    heading_font = bslib::font_google("Roboto Slab")
+  ),
+  tags$head(
+    tags$style(HTML("
+    /* Original gradient and card styles (unchanged) */
+    .bslib-navbar {
+      background: linear-gradient(40deg, #F26649 10%, #522E91 90%) !important;
+    }
+    .card-header.gradient-bg {
+      background: linear-gradient(40deg, #F26649 10%, #522E91 90%);
+      color: white;
+      border: none;
+    }
+    .card:not(.gradient-card) {
+      border: 1px solid #e1e1e1;
+      box-shadow: none;
+    }
+    .card:not(.gradient-card) .card-header {
+      background-color: white;
+      color: #522E91;
+      border-bottom: 1px solid #e1e1e1;
+      font-family: 'Roboto Slab', serif;
+    }
+    
+    /* Refined value boxes */
+    .value-box {
+      border: 1px solid #e1e1e1;
+      border-radius: 4px;
+      height: 120px; /* Fixed height for consistency */
+      margin-bottom: 15px; /* Space between value boxes */
+    }
+    
+    /* Adjusted plot containers */
+    .html-widget {
+      flex-grow: 1;
+      min-height: 250px; /* Reduced from 300px */
+      max-height: 350px; /* Added maximum height */
+    }
+    
+    /* Card layout adjustments */
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      padding: 15px; /* Consistent padding */
+    }
+    
+    /* Specific plot height controls */
+    #gauge_plot, #type_plot, #source_plot {
+      height: 280px !important; /* Fixed height for main plots */
+    }
+    
+    #monthly_plot {
+      height: 320px !important; /* Slightly taller for time series */
+    }
+   
+    .radar-plot {
+    height: 400px !important;
+    width: 100%;
+  }
+  .dt-buttons .btn {
+    margin-right: 5px;
+  }
+    
+    /* Responsive adjustments */
+    @media (max-width: 992px) {
+      .value-box {
+        height: auto;
+        min-height: 100px;
+      }
+      .html-widget {
+        min-height: 200px;
+      }
+    }
+  ")),
+    tags$link(
+      href = "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&family=Roboto&display=swap",
+      rel = "stylesheet"
+    )
+  ),
   nav_panel(
     "Dashboard",
-    div(  # Main container div
-      style = "width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;",
-      
-      # Value boxes row (stays fixed at top)
+    card(
+      card_header("Metrics", class = "gradient-bg"),
       layout_columns(
-        col_widths = c(4, 4, 4),
         value_box(
-          title = "Opportunities (YTD)",
-          value = textOutput("n_opp_ytd"),
-          showcase = bs_icon("activity"),
+          title = "Opportunities",
+          value = textOutput("n_opp"),
+          showcase = bsicons::bs_icon("activity"),
           theme = "primary",
-          height = "120px",
-          full_screen = FALSE
+          class = "h-100",  # Maintain full height
+          style = "min-height: 150px;"  # Set minimum height
         ),
         value_box(
           title = "Pursued",
           value = textOutput("n_pursued"),
-          showcase = bs_icon("pencil"),
-          theme = "secondary",
-          height = "120px",
-          full_screen = FALSE
+          showcase = bsicons::bs_icon("pencil"),
+          theme = "secondary", 
+          class = "h-100",
+          style = "min-height: 150px;"
         ),
         value_box(
           title = "Successes",
-          value = textOutput("n_success"),
-          showcase = bs_icon("speedometer2"),
+          value = textOutput("n_success"), 
+          showcase = bsicons::bs_icon("speedometer2"),
           theme = "success",
-          height = "120px",
-          full_screen = FALSE
+          class = "h-100",
+          style = "min-height: 150px;"
         ),
-        gap = "10px",
-        class = "mb-4 sticky-top",  # Makes this row stick when scrolling
-        style = "background-color: white; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+        col_widths = c(4, 4, 4)
       ),
       
-      # Gauge plot
-      card(
-        card_header("Mean days to decision"),
-        div(
-          style = "height: 400px;",  # Fixed height container
-          plotlyOutput("gauge_plot", height = "100%")
-        ),
-        class = "mb-4"
-      ),
-      
-      # Monthly plot
-      card(
-        card_header("Opportunities per Month (2025)"),
-        div(
-          style = "height: 500px;",  # Fixed height container
-          plotlyOutput("monthly_plot", height = "100%")
-        ),
-        class = "mb-4"
-      ),
-      
-      # Breakdown tabs
-      card(
-        card_header("Opportunity Breakdown"),
-        navset_card_tab(
-          nav_panel(
-            "By Type",
-            div(
-              style = "height: 500px;",
-              plotlyOutput("type_plot", height = "100%")
-            )
-          ),
-          nav_panel(
-            "By Funding Source",
-            div(
-              style = "height: 500px;",
-              plotlyOutput("source_plot", height = "100%")
-            )
+      # Visualization cards with auto-height
+      layout_columns(
+        card(
+          card_header("Average Decision Time"),
+          div(style = "height: auto; min-height: 300px;",  # Auto-adjusting height
+              plotlyOutput("gauge_plot")
           )
         ),
-        class = "mb-4"
+        card(
+          card_header("Opportunity Breakdown"),
+          div(style = "height: auto; min-height: 300px;",
+              navset_card_tab(
+                nav_panel("By Type", plotlyOutput("type_plot")),
+                nav_panel("By Source", plotlyOutput("source_plot"))
+              )
+          )
+        ),
+        col_widths = c(6, 6)
       ),
       
-      # Data table
+      # Time series card with more height
       card(
-        card_header("Most Recent Opportunities"),
-        div(
-          style = "height: 600px; overflow-y: auto;",  # Scrollable container
-          DTOutput("data_table")
+        card_header("Monthly Trends"),
+        div(style = "height: auto; min-height: 400px;",  # Taller minimum height
+            plotlyOutput("monthly_plot")
         )
       )
     )
   ),
-  # Tab 2: REDCap Data Editor (placeholder)
   nav_panel(
     "REDCap Data Editor",
     card(
-      card_header("REDCap Data Editor", class = "bg-primary text-white"),
+      card_header("Data Editor"),  # Now minimal
       layout_sidebar(
-        # Sidebar Panel (controls only)
         sidebar = sidebar(
           width = 350,
           position = "left",
           selectInput("record_id", "Select Record:", choices = NULL),
           uiOutput("field_editor"),
-          actionButton("save", "Save Changes", class = "btn-primary mt-3")
+          actionButton("save", "Save Changes", class = "btn-secondary mt-3")
         ),
-        
-        # Main Panel (data display with export buttons)
         card(
-          card_header(
-            "Record Data",
-            div(
-              class = "float-end",  # Aligns buttons to right
-              downloadButton("export_csv", "CSV", class = "btn-sm btn-success me-1"),
-              downloadButton("export_excel", "Excel", class = "btn-sm btn-info")
-            ),
-            class = "bg-light"
-          ),
-          card_body(
-            DTOutput("record_table"),
-            height = "600px",
-            max_height = "100%",
-            fillable = TRUE
-          ),
-          full_screen = TRUE
+          card_header("Record Data"),
+          DTOutput("record_table"),
+          height = "600px"
         )
       )
     )
   ),
-  
-  # Tab 3: Opportunity Scoring (placeholder)
   nav_panel(
     "Opportunity Scoring",
     card(
-      card_header("Opportunity Scoring - Coming Soon"),
-      p("This tab will help evaluate and score new opportunities in future versions."),
-      tags$div(
-        class = "text-center",
-        tags$img(
-          src = "https://cdn-icons-png.flaticon.com/512/3281/3281289.png",
-          style = "height: 100px; opacity: 0.5;"
+      card_header("Opportunity Scoring"),
+      layout_sidebar(
+        sidebar = sidebar(
+          width = 350,
+          position = "left",
+          selectInput("reviewer", "Select Your Name:", 
+                      choices = c("Penny", "Janice", "Steve", "Anna", "Chris")),
+          selectInput("selected_opportunity", "Select an Opportunity:", choices = NULL),
+          
+          sliderInput("feasibility", "Feasibility", min = 1, max = 5, value = 3),
+          sliderInput("impact", "Impact", min = 1, max = 5, value = 3),
+          sliderInput("alignment", "Strategic Fit", min = 1, max = 5, value = 3),
+          
+          radioButtons("decision", "Pursue This Opportunity?", 
+                       choices = c("Yes", "No"), inline = TRUE),
+          
+          actionButton("save_score", "Submit Score", class = "btn-primary"),
+          actionButton("clear_scores", "Clear My Scores", 
+                       class = "btn-outline-danger mt-2")
+        ),
+        navset_card_tab(
+          nav_panel("Opportunities", DTOutput("scoring_table")),
+          nav_panel("Aggregated Scores", DTOutput("summary_table")),
+          nav_panel("Radar Chart", echarts4rOutput("radar_plot"))
         )
       )
     )
   )
 )
-
-
+# Server ------------------------------------------------------------------
 server <- function(input, output, session) {
-  # Reactive values to store both raw and labeled data
+  # Initialize data stores
   data_store <- reactiveValues(
-    labeled = NULL,
-    raw = NULL,
-    meta = NULL
+    labeled = data.frame(),  # Labeled data for display
+    raw = data.frame(),      # Raw data for saving back to REDCap
+    meta = data.frame(),     # Metadata for field types/choices
+    last_update = NULL
   )
   
-  # Fetch all required data
-  observe({
-    req(session$userData$auth0_credentials)
-    
-    # Get labeled data for display
-    labeled <- redcap_read_oneshot(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN"),
-      raw_or_label = "label"
-    )$data
-    
-    # Get raw data for editing
-    raw <- redcap_read_oneshot(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN"),
-      raw_or_label = "raw"
-    )$data
-    
-    # Get metadata
-    meta <- redcap_metadata_read(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN")
-    )$data
-    
-    data_store$labeled <- labeled
-    data_store$raw <- raw
-    data_store$meta <- meta
-  })
-  # Reactive REDCap data connection
-  redcap_data <- reactive({
-    redcap_uri <- Sys.getenv("REDCAP_URL")
-    redcap_token <- Sys.getenv("REDCAP_TOKEN")
-    
-    if (redcap_uri == "" || redcap_token == "") {
-      showNotification("REDCap API credentials not configured", type = "error")
-      return(NULL)
-    }
-    
-    result <- tryCatch({
-      redcap_read_oneshot(
-        redcap_uri = redcap_uri,
-        token = redcap_token,
+  # Load data from REDCap
+  load_data <- function() {
+    tryCatch({
+      # Get labeled data for display
+      labeled <- redcap_read_oneshot(
+        redcap_uri = Sys.getenv("REDCAP_URL"),
+        token = Sys.getenv("REDCAP_TOKEN"),
         raw_or_label = "label"
-      )
+      )$data
+      
+      # Get raw data for saving back
+      raw <- redcap_read_oneshot(
+        redcap_uri = Sys.getenv("REDCAP_URL"),
+        token = Sys.getenv("REDCAP_TOKEN"),
+        raw_or_label = "raw"
+      )$data
+      
+      # Get metadata for field types
+      meta <- redcap_metadata_read(
+        redcap_uri = Sys.getenv("REDCAP_URL"),
+        token = Sys.getenv("REDCAP_TOKEN")
+      )$data
+      
+      if (nrow(labeled) == 0) stop("No data returned from REDCap")
+      
+      data_store$labeled <- labeled
+      data_store$raw <- raw
+      data_store$meta <- meta
+      data_store$last_update <- Sys.time()
+      
+      # Update record selector
+      updateSelectInput(session, "record_id", choices = raw$record_id)
+      
     }, error = function(e) {
-      showNotification(paste("REDCap connection failed:", e$message), type = "error")
-      return(NULL)
+      showNotification(paste("Error loading data:", e$message), type = "error")
     })
-    
-    if (is.null(result) || !result$success) {
-      showNotification("Failed to load REDCap data", type = "error")
-      return(NULL)
-    }
-    
-    result$data %>%
-      filter(opportunity_name != "test") %>%
-      mutate(
-        decision_date = ymd(decision_date),
-        days_opp_decision = as.numeric(decision_date - opportunity_date) + 1,
-        opportunity_date = ymd(opportunity_date)  # Ensure proper date format
-      )
+  }
+  
+  # Initial data load
+  observeEvent(TRUE, once = TRUE, {
+    load_data()
   })
   
-  # Dashboard calculations
-  output$n_opp_ytd <- renderText({
-    req(redcap_data())
-    nrow(redcap_data() %>% 
-           filter(opportunity_date >= as.Date("2025-01-01")))
+  # Dashboard outputs
+  output$n_opp <- renderText({
+    req(data_store$labeled)
+    nrow(data_store$labeled)
   })
   
   output$n_pursued <- renderText({
-    req(redcap_data())
-    nrow(redcap_data() %>% 
-           filter(pursue_decision == "Yes",
-                  opportunity_date >= as.Date("2025-01-01")))
+    req(data_store$labeled)
+    sum(data_store$labeled$pursue_decision == "Yes", na.rm = TRUE)
   })
   
   output$n_success <- renderText({
-    req(redcap_data())
-    nrow(redcap_data() %>% 
-           filter(status == "Awarded",
-                  opportunity_date >= as.Date("2025-01-01")))
+    req(data_store$labeled)
+    sum(data_store$labeled$status == "Awarded", na.rm = TRUE)
   })
   
-  # Gauge plot
+  output$data_table <- renderDT({
+    req(data_store$labeled)
+    datatable(data_store$labeled, options = list(pageLength = 5))
+  })
+  
+ 
+  
   output$gauge_plot <- renderPlotly({
-    req(redcap_data())
-    current_value <- mean(redcap_data()$days_opp_decision, na.rm = TRUE)
+    req(data_store$labeled)
+    
+    # Calculate days to decision
+    data <- data_store$labeled %>%
+      mutate(
+        decision_date = ymd(decision_date),
+        opportunity_date = ymd(opportunity_date),
+        days_to_decision = as.numeric(decision_date - opportunity_date)
+      ) %>%
+      filter(!is.na(days_to_decision))
+    
+    current_value <- mean(data$days_to_decision, na.rm = TRUE)
     target_value <- 14
     
     plot_ly(
       type = "indicator",
       mode = "gauge+number+delta",
       value = current_value,
-      delta = list(reference = target_value),
+      number = list(suffix = " days"),
+      delta = list(
+        reference = target_value,
+        increasing = list(color = "#F26649"),
+        decreasing = list(color = "#60C2AC")
+      ),
       gauge = list(
-        axis = list(range = c(100, 0)),
-        bar = list(color = "blue"),
+        axis = list(range = c(0, 30), tickwidth = 1, tickcolor = "#522E91"),
+        bar = list(color = "#522E91"),
+        bgcolor = "white",
         steps = list(
-          list(range = c(100, 60), color = "red"),
-          list(range = c(60, 15), color = "yellow"),
-          list(range = c(15, 0), color = "green")
+          list(range = c(25, 30), color = "#F26649"),
+          list(range = c(15, 25), color = "#FFDF5D"),
+          list(range = c(0, 15), color = "#60C2AC")
+        ),
+        threshold = list(
+          line = list(color = "black", width = 4),
+          thickness = 0.75,
+          value = target_value
         )
       )
-    )
+    ) %>%
+      layout(margin = list(l=20, r=20))
   })
   
-  # Monthly plot - starting Jan 2025
-  output$monthly_plot <- renderPlotly({
-    req(redcap_data())
-    
-    # Create complete month sequence from Jan 2025
-    all_months <- seq.Date(
-      from = as.Date("2025-01-01"),
-      to = max(redcap_data()$opportunity_date, na.rm = TRUE),
-      by = "month"
-    )
-    
-    monthly_counts <- redcap_data() %>%
-      filter(opportunity_date >= as.Date("2025-01-01")) %>%
-      mutate(month = floor_date(opportunity_date, unit = "month")) %>%
-      group_by(month) %>%
-      summarise(count = n()) %>%
-      complete(month = all_months, fill = list(count = 0))  # Fill missing months with 0
+  # Breakdown by type
+  # Breakdown by type - corrected version
+  output$type_plot <- renderPlotly({
+    req(data_store$labeled)
     
     plot_ly(
-      data = monthly_counts,
+      data = data_store$labeled,
+      x = ~opportunity_type,
+      type = "histogram",  # This automatically bins/counts categorical data
+      marker = list(color = "#522E91"),
+      hoverinfo = "y"  # Show only count on hover
+    ) %>%
+      layout(
+        xaxis = list(title = "Opportunity Type", tickangle = -45),
+        yaxis = list(title = "Count", rangemode = "tozero"),
+        margin = list(b = 100)
+      )
+  })
+  
+  output$source_plot <- renderPlotly({
+    req(data_store$labeled)
+    
+    plot_ly(
+      data = data_store$labeled,
+      x = ~funding_source,
+      type = "histogram",  # Automatic counting
+      marker = list(color = "#F26649"),
+      hoverinfo = "y"
+    ) %>%
+      layout(
+        xaxis = list(title = "Funding Source", tickangle = -45),
+        yaxis = list(title = "Count", rangemode = "tozero"),
+        margin = list(b = 100)
+      )
+  })
+  # Monthly time series
+  output$monthly_plot <- renderPlotly({
+    req(data_store$labeled)
+    
+    # Create a safe sequence function
+    safe_date_seq <- function(min_date, max_date) {
+      if (is.finite(min_date) && is.finite(max_date)) {
+        seq(min_date, max_date, by = "month")
+      } else {
+        as.Date(character())  # Return empty date vector if invalid
+      }
+    }
+    
+    # Process data with error handling
+    monthly_data <- tryCatch({
+      processed <- data_store$labeled %>%
+        mutate(
+          opportunity_date = ymd(opportunity_date),
+          month = floor_date(opportunity_date, "month")
+        ) %>%
+        filter(!is.na(month))
+      
+      if (nrow(processed) > 0) {
+        min_date <- min(processed$month, na.rm = TRUE)
+        max_date <- max(processed$month, na.rm = TRUE)
+        
+        processed %>%
+          count(month) %>%
+          complete(
+            month = safe_date_seq(min_date, max_date),
+            fill = list(n = 0)
+          )
+      } else {
+        data.frame(month = as.Date(character()), n = integer())
+      }
+    }, error = function(e) {
+      data.frame(month = as.Date(character()), n = integer())
+    })
+    
+    # Handle empty data case
+    if (nrow(monthly_data) == 0) {
+      return(plotly_empty(type = "scatter") %>%
+               layout(
+                 title = list(text = "No valid date data available"),
+                 plot_bgcolor = "#FFFFFF",
+                 paper_bgcolor = "#FFFFFF"
+               ))
+    }
+    
+    # Create the plot
+    plot_ly(
+      monthly_data,
       x = ~month,
-      y = ~count,
-      type = 'scatter',
-      mode = 'lines+markers',
-      line = list(color = '#4E79A7', width = 2),
-      marker = list(color = '#4E79A7', size = 8)
+      y = ~n,
+      type = "scatter",
+      mode = "lines+markers",
+      line = list(color = "#522E91", width = 3),
+      marker = list(color = "#F26649", size = 8),
+      hoverinfo = "text",
+      text = ~paste0(
+        "Month: ", format(month, "%B %Y"), "\n",
+        "Opportunities: ", n
+      )
     ) %>%
       layout(
         xaxis = list(
-          title = "Month",
-          range = c(as.Date("2025-01-01"), max(monthly_counts$month, na.rm = TRUE)),
+          title = "",
+          gridcolor = "#e1e1e1",
+          type = "date",
           tickformat = "%b %Y"
         ),
-        yaxis = list(title = "Count", rangemode = "tozero"),
-        hovermode = "x unified"
+        yaxis = list(
+          title = "Number of Opportunities",
+          gridcolor = "#e1e1e1",
+          zeroline = FALSE
+        ),
+        hovermode = "x unified",
+        plot_bgcolor = "#FFFFFF",
+        paper_bgcolor = "#FFFFFF",
+        margin = list(t = 40)
       )
   })
   
-  
-  # Type plot
-  output$type_plot <- renderPlotly({
-    req(redcap_data())
-    counts_by_type <- redcap_data() %>%
-      group_by(opportunity_type) %>%
-      summarise(count = n())
-    
-    plot_ly(
-      data = counts_by_type,
-      x = ~opportunity_type,
-      y = ~count,
-      type = 'bar'
-    ) %>%
-      layout(
-        xaxis = list(title = "Opportunity Type"),
-        yaxis = list(title = "Count")
-      )
+  # Data editor outputs
+  # TODO dropdown select boxes
+  output$record_table <- renderDT({
+    req(data_store$labeled)
+    datatable(data_store$labeled, 
+              filter = 'top',  # Adds filter inputs above each column
+              options = list(scrollX = TRUE))
   })
   
-  # Source plot
-  output$source_plot <- renderPlotly({
-    req(redcap_data())
-    counts_by_source <- redcap_data() %>%
-      group_by(funding_source) %>%
-      summarise(count = n())
-    
-    plot_ly(
-      data = counts_by_source,
-      x = ~funding_source,
-      y = ~count,
-      type = 'bar'
-    ) %>%
-      layout(
-        xaxis = list(title = "Funding Source"),
-        yaxis = list(title = "Count")
-      )
-  })
-  # Fetch all required data
-  observe({
-    req(session$userData$auth0_credentials)
-    
-    # Get labeled data for display
-    labeled <- redcap_read_oneshot(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN"),
-      raw_or_label = "label"
-    )$data
-    
-    # Get raw data for editing
-    raw <- redcap_read_oneshot(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN"),
-      raw_or_label = "raw"
-    )$data
-    
-    # Get metadata
-    meta <- redcap_metadata_read(
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN")
-    )$data
-    
-    data_store$labeled <- labeled
-    data_store$raw <- raw
-    data_store$meta <- meta
-  })
-  
-  # Update record selector
-  observe({
-    req(data_store$raw)
-    updateSelectInput(session, "record_id", choices = data_store$raw$record_id)
-  })
-  
-  # Render field editor
+  # Dynamic field editor UI
   output$field_editor <- renderUI({
-    req(input$record_id, data_store$raw, data_store$labeled, data_store$meta)
+    req(input$record_id, data_store$raw, data_store$meta)
     
-    raw_record <- data_store$raw[data_store$raw$record_id == input$record_id, ]
-    labeled_record <- data_store$labeled[data_store$labeled$record_id == input$record_id, ]
-    fields <- setdiff(names(raw_record), "record_id")
+    record <- data_store$raw[data_store$raw$record_id == input$record_id, ]
+    fields <- setdiff(names(record), "record_id")
     
     lapply(fields, function(field) {
       meta <- data_store$meta[data_store$meta$field_name == field, ]
       
-      # Handle checkbox fields (special case)
-      if (nrow(meta) > 0 && meta$field_type == "checkbox") {
-        choices <- parse_choices(meta$select_choices_or_calculations)
-        checkbox_options <- lapply(choices, function(choice) {
-          checkbox_name <- paste0(field, "___", choice$value)
-          checkboxInput(
-            inputId = checkbox_name,
-            label = choice$label,
-            value = raw_record[[checkbox_name]] == "1"
-          )
-        })
-        return(checkbox_options)
+      if (nrow(meta) == 0) {
+        return(textInput(field, label = field, value = record[[field]]))
       }
       
-      # Handle dropdown/radio fields
-      if (nrow(meta) > 0 && meta$field_type %in% c("dropdown", "radio")) {
+      # Handle different field types
+      if (meta$field_type %in% c("dropdown", "radio")) {
         choices <- parse_choices(meta$select_choices_or_calculations)
-        if (length(choices) > 0) {
-          return(selectInput(
-            inputId = field,
-            label = field,
-            choices = setNames(sapply(choices, `[[`, "value"), 
-                               sapply(choices, `[[`, "label")),
-            selected = raw_record[[field]]
-          ))
+        current_value <- record[[field]]
+        
+        # Get labeled value for display
+        labeled_value <- if (current_value %in% sapply(choices, `[[`, "value")) {
+          choices[[which(sapply(choices, `[[`, "value") == current_value)]]$label
+        } else {
+          current_value
         }
+        
+        selectInput(
+          inputId = field,
+          label = field,
+          choices = c("", setNames(sapply(choices, `[[`, "value"), 
+                                   sapply(choices, `[[`, "label"))),
+          selected = current_value
+        )
+        
+      } else if (meta$field_type == "checkbox") {
+        choices <- parse_choices(meta$select_choices_or_calculations)
+        checkboxGroupInput(
+          inputId = field,
+          label = field,
+          choices = setNames(sapply(choices, `[[`, "value"), 
+                             sapply(choices, `[[`, "label")),
+          selected = {
+            selected <- character(0)
+            for (choice in choices) {
+              checkbox_name <- paste0(field, "___", choice$value)
+              if (record[[checkbox_name]] == "1") {
+                selected <- c(selected, choice$value)
+              }
+            }
+            selected
+          }
+        )
+      } else {
+        textInput(field, label = field, value = record[[field]])
       }
-      
-      # Default text input
-      textInput(field, label = field, value = raw_record[[field]])
     })
   })
   
-  # Save handler - writes raw data back to REDCap
+  ## For the scorer
+  
+  user_scores <- reactiveVal(
+    data.frame(
+      reviewer = character(),
+      opportunity_name = character(),
+      feasibility = numeric(),
+      impact = numeric(),
+      alignment = numeric(),
+      decision = character(),
+      stringsAsFactors = FALSE
+    )
+  )
+  
+  # Update opportunity dropdown choices
+  observe({
+    req(data_store$labeled)
+    
+    # Filter for only "Waiting support decision" opportunities
+    filtered_opps <- data_store$labeled %>%
+      filter(status == "Waiting support decision") %>%
+      pull(opportunity_name) %>%
+      unique()
+    
+    updateSelectInput(session, "selected_opportunity", 
+                      choices = filtered_opps)
+  })
+  
+  # Save user scores locally
+  observeEvent(input$save_score, {
+    req(input$selected_opportunity)
+    
+    new_score <- data.frame(
+      reviewer = as.character(input$reviewer),
+      opportunity_name = as.character(input$selected_opportunity),
+      feasibility = as.numeric(input$feasibility),
+      impact = as.numeric(input$impact),
+      alignment = as.numeric(input$alignment),
+      decision = as.character(input$decision),
+      stringsAsFactors = FALSE
+    )
+    
+    # Convert existing scores to proper types before binding
+    current_scores <- user_scores() %>%
+      mutate(
+        reviewer = as.character(reviewer),
+        opportunity_name = as.character(opportunity_name),
+        feasibility = as.numeric(feasibility),
+        impact = as.numeric(impact),
+        alignment = as.numeric(alignment),
+        decision = as.character(decision)
+      )
+    
+    # Remove existing score from same user for same opportunity
+    updated_scores <- current_scores %>%
+      filter(!(reviewer == input$reviewer & 
+                 opportunity_name == input$selected_opportunity)) %>%
+      bind_rows(new_score)
+    
+    user_scores(updated_scores)
+    showNotification("Score submitted successfully!", type = "message")
+  })
+  
+ 
+  # Clear scores for current user
+  observeEvent(input$clear_scores, {
+    current_scores <- user_scores() %>%
+      mutate(
+        reviewer = as.character(reviewer),
+        opportunity_name = as.character(opportunity_name),
+        feasibility = as.numeric(feasibility),
+        impact = as.numeric(impact),
+        alignment = as.numeric(alignment),
+        decision = as.character(decision)
+      )
+    
+    updated_scores <- current_scores %>%
+      filter(reviewer != input$reviewer)
+    
+    user_scores(updated_scores)
+    showNotification("Your scores have been cleared", type = "message")
+  })
+  
+  # Display opportunities table
+  output$scoring_table <- renderDT({
+    req(data_store$labeled)
+    
+    filtered_data <- data_store$labeled %>%
+      filter(status == "Waiting support decision") %>%
+      select(record_id, opportunity_name, dev_lead, lead_contact, status)
+    
+    datatable(filtered_data, 
+              options = list(
+                scrollX = TRUE,
+                pageLength = 10
+              ))
+  })
+  
+  # Display aggregated scores
+  output$summary_table <- renderDT({
+    req(nrow(user_scores()) > 0)
+    
+    df <- user_scores() %>%
+      mutate(across(c(feasibility, impact, alignment), as.numeric))
+    
+    # Calculate averages
+    avg_scores <- df %>%
+      group_by(opportunity_name) %>%
+      summarise(
+        feasibility = round(mean(feasibility, na.rm = TRUE), 2),
+        impact = round(mean(impact, na.rm = TRUE), 2),
+        alignment = round(mean(alignment, na.rm = TRUE), 2),
+        decision = paste(decision[decision != ""], collapse = ", "),
+        .groups = "drop"
+      ) %>%
+      mutate(reviewer = "Average")
+    
+    # Combine with individual scores
+    combined <- df %>%
+      select(reviewer, opportunity_name, feasibility, impact, alignment, decision) %>%
+      bind_rows(avg_scores) %>%
+      arrange(opportunity_name, reviewer)
+    
+    datatable(combined, options = list(scrollX = TRUE))
+  })
+  
+  # Radar plot using echarts4r (exact implementation from your scoring app)
+  plot_data <- reactive({
+    req(nrow(user_scores()) > 0)
+    
+    # Convert all columns to proper types first
+    df <- user_scores() %>%
+      mutate(
+        reviewer = as.character(reviewer),
+        opportunity_name = as.character(opportunity_name),
+        feasibility = as.numeric(feasibility),
+        impact = as.numeric(impact),
+        alignment = as.numeric(alignment),
+        decision = as.character(decision)
+      ) %>%
+      # Remove any rows with NA values in critical columns
+      filter(
+        !is.na(feasibility),
+        !is.na(impact), 
+        !is.na(alignment),
+        !is.na(opportunity_name),
+        !is.na(reviewer)
+      )
+    
+    # Calculate averages per reviewer per opportunity
+    df <- df %>%
+      group_by(opportunity_name, reviewer) %>%
+      summarise(
+        feasibility = mean(feasibility, na.rm = TRUE),
+        impact = mean(impact, na.rm = TRUE),
+        alignment = mean(alignment, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    # Add "Average" row for each opportunity
+    avg_data <- df %>%
+      group_by(opportunity_name) %>%
+      summarise(
+        feasibility = mean(feasibility, na.rm = TRUE),
+        impact = mean(impact, na.rm = TRUE),
+        alignment = mean(alignment, na.rm = TRUE),
+        reviewer = "Average",
+        .groups = "drop"
+      )
+    
+    # Combine individual and average scores
+    combined <- bind_rows(df, avg_data) %>%
+      mutate(
+        feasibility = round(as.numeric(feasibility), 2),
+        impact = round(as.numeric(impact), 2),
+        alignment = round(as.numeric(alignment), 2)
+      )
+    
+    # Pivot to long then wide format while preserving opportunity_name
+    plot_data_list <- combined %>%
+      pivot_longer(
+        cols = c(feasibility, impact, alignment),
+        names_to = "domain",
+        values_to = "score"
+      ) %>%
+      mutate(
+        domain = factor(
+          domain,
+          levels = c("feasibility", "impact", "alignment"),
+          labels = c("Feasibility", "Impact", "Alignment")
+        )
+      ) %>%
+      group_by(opportunity_name) %>%
+      group_split() %>%
+      map(~ {
+        .x %>%
+          select(-opportunity_name) %>%
+          pivot_wider(
+            names_from = reviewer,
+            values_from = score
+          ) %>%
+          mutate(across(where(is.numeric), ~ round(as.numeric(.x), 2)))
+      })
+    
+    names(plot_data_list) <- unique(combined$opportunity_name)
+    plot_data_list
+  })
+  # Render the radar chart with echarts4r (exact working version)
+  output$radar_plot <- renderEcharts4r({
+    req(input$selected_opportunity, plot_data())
+    
+    df <- plot_data()[[input$selected_opportunity]]
+    req(nrow(df) > 0)
+    
+    # Extract reviewer names (columns except "domain")
+    reviewers <- setdiff(names(df), "domain")
+    
+    # Define radar axes
+    radar_axes <- list(
+      list(name = "Feasibility", max = 5, min = 1),
+      list(name = "Impact", max = 5, min = 1),
+      list(name = "Alignment", max = 5, min = 1)
+    )
+    
+    # Build radar chart with all reviewers
+    chart <- df %>%
+      e_charts(domain) 
+    
+    # Add each reviewer's scores as a separate radar series
+    for (reviewer in reviewers) {
+      chart <- chart %>% 
+        e_radar_(reviewer, name = reviewer)
+    }
+    
+    # Final chart formatting
+    chart %>%
+      e_radar_opts(indicator = radar_axes) %>%
+      e_tooltip(trigger = "item") %>%
+      e_legend(show = TRUE) %>%
+      e_color(color = c("#522E91", "#F26649", "#60C2AC", "#FFDF5D", "#73CDE1")) %>% # Your app's color scheme
+      e_title(text = "Opportunity Scores by Reviewer", 
+              subtext = "Hover to view individual scores")
+  })
+ 
+  ## Observers
+  
+  observe({
+    updateSliderInput(session, "feasibility", value = as.numeric(input$feasibility))
+    updateSliderInput(session, "impact", value = as.numeric(input$impact))
+    updateSliderInput(session, "alignment", value = as.numeric(input$alignment))
+  })
+  
+  # Save changes back to REDCap
   observeEvent(input$save, {
     req(input$record_id, data_store$raw)
     
-    # Create updated record from inputs
     updated_record <- data_store$raw[data_store$raw$record_id == input$record_id, ]
     meta <- data_store$meta
     
-    # Update each field from inputs
     for (field in names(updated_record)) {
       if (field == "record_id") next
       
       field_meta <- meta[meta$field_name == sub("___.*", "", field), ]
       
-      # Handle checkbox fields
-      if (nrow(field_meta) > 0 && field_meta$field_type == "checkbox") {
-        checkbox_name <- field
-        updated_record[[checkbox_name]] <- ifelse(isTRUE(input[[checkbox_name]]), "1", "0")
-        next
-      }
+      if (nrow(field_meta) == 0) next
       
-      # Handle regular fields
-      if (field %in% names(input)) {
+      if (field_meta$field_type == "checkbox") {
+        # Handle checkbox fields
+        choices <- parse_choices(field_meta$select_choices_or_calculations)
+        for (choice in choices) {
+          checkbox_name <- paste0(field_meta$field_name, "___", choice$value)
+          updated_record[[checkbox_name]] <- ifelse(choice$value %in% input[[field_meta$field_name]], "1", "0")
+        }
+      } else if (field_meta$field_name == field) {
+        # Handle regular fields
         updated_record[[field]] <- input[[field]]
       }
     }
     
-    # Write to REDCap
-    result <- redcap_write(
-      ds_to_write = updated_record,
-      redcap_uri = Sys.getenv("REDCAP_URL"),
-      token = Sys.getenv("REDCAP_TOKEN")
-    )
-    
-    if (result$success) {
-      showNotification("Record saved successfully!", type = "message")
-      # Refresh data
-      data_store$raw <- redcap_read_oneshot(
+    tryCatch({
+      result <- redcap_write(
+        ds_to_write = updated_record,
         redcap_uri = Sys.getenv("REDCAP_URL"),
-        token = Sys.getenv("REDCAP_TOKEN"),
-        raw_or_label = "raw"
-      )$data
-    } else {
-      showNotification("Failed to save record", type = "error")
-    }
+        token = Sys.getenv("REDCAP_TOKEN")
+      )
+      
+      if (result$success) {
+        showNotification("Record saved successfully!", type = "message")
+        load_data() # Refresh data
+      } else {
+        showNotification("Failed to save record", type = "error")
+      }
+    }, error = function(e) {
+      showNotification(paste("Error saving record:", e$message), type = "error")
+    })
   })
   
   # Helper function to parse REDCap choices
@@ -492,32 +837,8 @@ server <- function(input, output, session) {
       }
     })
   }
-  
-  # Display labeled data table
-  output$record_table <- renderDT({
-    req(data_store$labeled)
-    datatable(data_store$labeled, rownames = FALSE)
-  })
-  
-  # Export handlers
-  output$export_csv <- downloadHandler(
-    filename = function() paste("opportunities-", Sys.Date(), ".csv", sep = ""),
-    content = function(file) write.csv(data_store$labeled, file, row.names = FALSE)
-  )
-  
-  output$export_excel <- downloadHandler(
-    filename = function() paste("opportunities-", Sys.Date(), ".xlsx", sep = ""),
-    content = function(file) writexl::write_xlsx(data_store$labeled, file)
-  )
-  # REDCap preview table
-  output$redcap_preview <- renderDT({
-    req(redcap_data())
-    datatable(
-      redcap_data() %>% head(10),
-      options = list(dom = 't', pageLength = 5),
-      rownames = FALSE
-    )
-  })
 }
-options(shiny.port = 8080)
+
+# Run the app
+#options(shiny.port = 8080)
 shinyAppAuth0(ui, server)
