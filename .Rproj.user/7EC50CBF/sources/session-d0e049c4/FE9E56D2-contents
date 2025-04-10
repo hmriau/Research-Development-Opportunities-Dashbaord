@@ -27,9 +27,13 @@ ui <- page_navbar(
     "warning" = "#FFDF5D",
     "bg" = "#FFFFFF",
     "fg" = "#000000",
-    "navbar-bg" = "#522E91",  # Fallback solid color
+    "navbar-bg" = "#522E91",
+    "body-color" = "#000000",  # Explicit text color
+    "card-cap-bg" = "#FFFFFF", # Match your custom card header
     base_font = bslib::font_google("Roboto"),
-    heading_font = bslib::font_google("Roboto Slab")
+    heading_font = bslib::font_google("Roboto Slab"),
+    "card-border-width" = "1px",  # More consistent with your design
+    "card-border-color" = "#E9ECEF"
   ),
   tags$head(
     tags$script(HTML("
@@ -48,116 +52,116 @@ ui <- page_navbar(
     });
   ")),
     tags$style(HTML("
-    html {
-    scroll-padding-top: 60px; /* Prevents navbar from covering content */
-    }
+  /* Base layout */
+  html {
+    scroll-padding-top: 60px;
+  }
   
-      /* Navbar gradient - working solution */
-      header.navbar {
-        background: linear-gradient(40deg, #F26649 10%, #522E91 90%) !important;
-        color: white !important;
-        border-bottom: none !important;
-      }
+  /* Navbar styling */
+  header.navbar {
+    background: linear-gradient(40deg, #F26649 10%, #522E91 90%);
+    color: white;
+    border-bottom: none;
+  }
+  
+  .navbar-title, 
+  .nav-item a {
+    color: rgba(255,255,255,0.8);
+  }
+  
+  .nav-item a:hover {
+    color: white;
+  }
+  
+  /* Card styling */
+  .metrics-card {
+    background-color: #F8F9FA;
+    border: 1px solid #E9ECEF;
+  }
+  
+  .metrics-card .card-header {
+    background-color: white;
+    color: #522E91;
+    border-bottom: 1px solid #E9ECEF;
+    font-family: 'Roboto Slab', serif;
+  }
+  
+  /* Tab styling */
+  .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    
+    .nav-link {
+      color: #522E91;
       
-      /* Navbar text color */
-      .navbar-title {
-        color: white !important;
+      &.active {
+        color: #F26649;
+        font-weight: bold;
       }
-      
-      /* Navbar menu items */
-      .nav-item a {
-        color: rgba(255,255,255,0.8) !important;
-      }
-      .nav-item a:hover {
-        color: white !important;
-      }
-      /* Metrics card - light solid color */
-      .metrics-card {
-        background-color: #F8F9FA !important; /* Light gray background */
-        border: 1px solid #E9ECEF !important; /* Subtle border */
-      }
-      
-      /* Metrics card header - light with colored text */
-      .metrics-card .card-header {
-        background-color: white !important;
-        color: #522E91 !important; /* Purple text to match theme */
-        border-bottom: 1px solid #E9ECEF !important;
-        font-family: 'Roboto Slab', serif;
-      }
-      /* Alert styling */
+    }
+  }
+  
+  /* Alert styling */
   .alert {
     padding: 15px;
     border-radius: 4px;
     margin: 15px 0;
     font-family: 'Roboto', sans-serif;
+    
+    i {
+      margin-right: 10px;
+    }
+    
+    &-success {
+      background-color: #60C2AC20;
+      border-left: 4px solid #60C2AC;
+      color: #0d362f;
+    }
+    
+    &-warning {
+      background-color: #FFDF5D20;
+      border-left: 4px solid #FFDF5D;
+      color: #5c4a00;
+    }
   }
   
-  .alert-success {
-    background-color: #60C2AC20;  /* success color with opacity */
-    border-left: 4px solid #60C2AC;
-    color: #0d362f;
-  }
-  
-  .alert-warning {
-    background-color: #FFDF5D20;  /* warning color with opacity */
-    border-left: 4px solid #FFDF5D;
-    color: #5c4a00;
-  }
-  
-  .alert i {
-    margin-right: 10px;
-  }
-      /* Make plot containers fully responsive */
+  /* Plot containers */
   .plot-container {
     width: 100%;
     height: 100%;
-    min-height: 400px;  /* Adjust as needed */
-    overflow: visible !important;  /* Allows content to expand */
+    min-height: 400px;
+    
+    .js-plotly-plot {
+      width: 100% !important;
+      height: 100% !important;
+    }
   }
   
-  /* Specific plot styling */
-  .js-plotly-plot {
-    width: 100% !important;
-    height: 100% !important;
-  }
-  
+  /* Badges */
   .badge {
-  font-size: 0.75em;
-  padding: 3px 6px;
-  border-radius: 12px;
-  vertical-align: middle;
-}
-
-/* Pulse animation for attention */
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-.attention-badge {
-  animation: pulse 1.5s infinite;
-}
+    font-size: 0.75em;
+    padding: 3px 6px;
+    border-radius: 12px;
+    vertical-align: middle;
+  }
   
-  /* Card body adjustments */
-  .card-body {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-  }
+  /* Responsive adjustments */
   @media (max-width: 768px) {
-  .plot-container {
-    min-height: 300px;
+    .plot-container {
+      min-height: 300px;
+    }
   }
-}
-      
-    "))
+"))
   ),
   nav_panel(
     "Dashboard",
     card(
       class = "metrics-card",  # Add this class
-      card_header("Metrics"),
+      card_header(
+        "Metrics",
+        actionButton("refresh_data", "Refresh Data", 
+                     icon = icon("sync"), 
+                     class = "btn-sm float-end")
+      ),
       layout_columns(
         # Your value boxes here
         value_box(
@@ -191,7 +195,6 @@ ui <- page_navbar(
               plotlyOutput("gauge_plot")
           )
         ),
-        
         card(
           card_header("Opportunity Breakdown"),
           div(class = "plot-container",
@@ -203,7 +206,6 @@ ui <- page_navbar(
         ),
         col_widths = c(6, 6)
       ),
-      
       # Time series card with more height
       card(
         card_header("Monthly Trends"),
@@ -263,7 +265,10 @@ ui <- page_navbar(
           
           actionButton("save_score", "Submit Score", class = "btn-primary"),
           actionButton("clear_scores", "Clear My Scores", 
-                       class = "btn-outline-danger mt-2")
+                       class = "btn-outline-danger mt-2"),
+          selectInput("status_update", "Set Opportunity Status:",
+                      choices = NULL, selected = NULL),
+          actionButton("submit_status", "Submit Status", class = "btn-success mt-2")
         ),
         navset_card_tab(
           nav_panel("Opportunities", DTOutput("scoring_table")),
@@ -621,14 +626,13 @@ server <- function(input, output, session) {
   ## For the scorer
   
   user_scores <- reactiveVal(
-    data.frame(
-      reviewer = character(0),
-      opportunity_name = character(0),
-      feasibility = numeric(0),
-      impact = numeric(0),
-      alignment = numeric(0),
-      decision = character(0),
-      stringsAsFactors = FALSE
+    tibble::tibble(
+      reviewer = character(),
+      opportunity_name = character(),
+      feasibility = numeric(),
+      impact = numeric(),
+      alignment = numeric(),
+      decision = character()
     )
   )
   # Update opportunity dropdown choices
@@ -652,42 +656,69 @@ server <- function(input, output, session) {
                       choices = filtered_opps)
   })
   
+  observe({
+    req(data_store$meta)
+    
+    status_meta <- data_store$meta %>%
+      filter(field_name == "status")  # Adjust this if your field name is different
+    
+    if (nrow(status_meta) == 1 && status_meta$field_type == "dropdown") {
+      choices <- parse_choices(status_meta$select_choices_or_calculations)
+      
+      updateSelectInput(
+        session, "status_update",
+        choices = setNames(
+          sapply(choices, `[[`, "value"),
+          sapply(choices, `[[`, "label")
+        ),
+        selected = choices[[which(sapply(choices, `[[`, "label") == "Development")]]$value  # default
+      )
+    }
+  })
+  
   # Save user scores locally
   observeEvent(input$save_score, {
-    req(input$selected_opportunity)
+    req(input$selected_opportunity, input$reviewer, input$decision,
+        input$feasibility, input$impact, input$alignment)
     
-    new_score <- data.frame(
+    # Validate inputs
+    if (input$selected_opportunity == "") {
+      showNotification("Please select an opportunity", type = "error")
+      return()
+    }
+    
+    # Create new score entry with explicit types
+    new_entry <- tibble::tibble(
       reviewer = as.character(input$reviewer),
       opportunity_name = as.character(input$selected_opportunity),
       feasibility = as.numeric(input$feasibility),
       impact = as.numeric(input$impact),
       alignment = as.numeric(input$alignment),
-      decision = as.character(input$decision),
-      stringsAsFactors = FALSE
+      decision = as.character(input$decision)
     )
     
-    # Convert existing scores to proper types before binding
-    current_scores <- user_scores() %>%
-      mutate(
-        reviewer = as.character(reviewer),
-        opportunity_name = as.character(opportunity_name),
-        feasibility = as.numeric(feasibility),
-        impact = as.numeric(impact),
-        alignment = as.numeric(alignment),
-        decision = as.character(decision)
-      )
+    # Get current scores
+    current <- isolate(user_scores())
     
-    # Remove existing score from same user for same opportunity
-    updated_scores <- current_scores %>%
+    # Update scores
+    updated <- current %>%
       filter(!(reviewer == input$reviewer & 
                  opportunity_name == input$selected_opportunity)) %>%
-      bind_rows(new_score)
+      bind_rows(new_entry)
     
-    user_scores(updated_scores)
-    showNotification("Score submitted successfully!", type = "message")
+    user_scores(updated)
+    
+    # Visual feedback
+    showNotification(
+      paste("Score submitted for", input$selected_opportunity), 
+      type = "message"
+    )
+    
+    # Debug output in UI
+    output$debug_output <- renderPrint({
+      user_scores()
+    })
   })
-  
- 
   # Clear scores for current user
   observeEvent(input$clear_scores, {
     current_scores <- user_scores() %>%
@@ -705,6 +736,44 @@ server <- function(input, output, session) {
     
     user_scores(updated_scores)
     showNotification("Your scores have been cleared", type = "message")
+  })
+  
+  # Save status
+  
+  observeEvent(input$submit_status, {
+    req(input$selected_opportunity, input$status_update, data_store$raw)
+    
+    # Get record_id for the selected opportunity
+    record <- data_store$raw %>%
+      filter(opportunity_name == input$selected_opportunity)
+    
+    if (nrow(record) != 1) {
+      showNotification("Could not uniquely identify the record", type = "error")
+      return()
+    }
+    
+    record_id <- record$record_id
+    
+    # Create REDCap update
+    updated_record <- record
+    updated_record$status <- input$status_update
+    
+    tryCatch({
+      result <- redcap_write(
+        ds_to_write = updated_record,
+        redcap_uri = Sys.getenv("REDCAP_URL"),
+        token = Sys.getenv("REDCAP_TOKEN")
+      )
+      
+      if (result$success) {
+        showNotification("Status updated successfully!", type = "message")
+        load_data()  # Refresh data
+      } else {
+        showNotification("Failed to update status", type = "error")
+      }
+    }, error = function(e) {
+      showNotification(paste("Error:", e$message), type = "error")
+    })
   })
   
   # Display opportunities table
